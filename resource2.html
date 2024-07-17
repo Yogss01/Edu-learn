@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Communication - EduLearn</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>EduLearn</h1>
+            <nav>
+                <ul>
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="about.html">About</a></li>
+                    <li><a href="services.html">Services</a></li>
+                    <li><a href="contact.html">Contact Us</a></li>
+                    <li><a href="login.html">Login</a></li>
+                    <li><a href="welcome.html">Welcome</a></li>
+                    <li><a href="#" onclick="logout()">Logout</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <section class="communication">
+        <div class="container">
+            <h2>Discussion Forums and Messaging</h2>
+            <ul>
+                <li>Features to participate in discussion forums, send messages, and communicate with instructors and peers.</li>
+            </ul>
+            <h3>Profile Management</h3>
+            <ul>
+                <li>Options to view and edit personal profile information, including contact details and preferences.</li>
+            </ul>
+            <h3>Notifications</h3>
+            <ul>
+                <li>Alerts and notifications for important updates, deadlines, and announcements.</li>
+            </ul>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 EduLearn. All rights reserved.</p>
+        </div>
+    </footer>
+
+     <!-- Logout Modal -->
+     <div id="logoutModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <p>Thank you for visiting EduLearn!</p>
+        </div>
+    </div>
+
+    <script>
+        // Optional: You can add JavaScript for further customization if needed
+        function logout() {
+            // Clear user session data here
+            console.log('Logging out');
+            // Show the modal
+            document.getElementById('logoutModal').style.display = 'block';
+            // Redirect to the login page after a short delay
+            setTimeout(() => {
+                window.location.href = 'login.html';
+            }, 3000); // 3 seconds delay
+        }
+
+        function closeModal() {
+            document.getElementById('logoutModal').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
