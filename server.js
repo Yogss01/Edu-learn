@@ -5,7 +5,8 @@ const session = require('express-session');
 const passport = require('passport');
 const { MongoClient } = require('mongodb');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const FacebookStrategy = require('passport-facebook').Strategy;
+const GitHubStrategy = require('passport-github2').Strategy;
+const path = require('path');
 
 const app = express();
 
@@ -30,7 +31,7 @@ connectToMongoDB();
 app.use(cors());
 app.use(bodyParser.json());
 app.use(session({ 
-    secret: 'YOUR_SECRET', // Replace with your generated session secret
+    secret: 'SECRET_ID', // Replace with your generated session secret
     resave: false, 
     saveUninitialized: true 
 }));
@@ -47,9 +48,9 @@ passport.deserializeUser((user, done) => {
 
 // Configure Google strategy
 passport.use(new GoogleStrategy({
-    clientID: 'GOOGLE_CLIENT_ID', // Replace with your Google Client ID
-    clientSecret: 'GOOGLE_CLIENT_SECRET', // Replace with your Google Client Secret
-    callbackURL: 'REDIRECT_URL'
+    clientID: 'CLIENT_ID', // Replace with your Google Client ID
+    clientSecret: 'CLIENT_SECRET_ID', // Replace with your Google Client Secret
+    callbackURL: 'http://localhost:3000/auth/google/callback'
 }, async (token, tokenSecret, profile, done) => {
     try {
         const database = client.db('edu-learn');
@@ -67,6 +68,40 @@ passport.use(new GoogleStrategy({
         return done(error, null);
     }
 }));
+
+// Configure GitHub strategy
+passport.use(new GitHubStrategy({
+    clientID: 'GITHUB_CLIENT_ID', // Replace with your GitHub Client ID
+    clientSecret: 'GITHUB_SECRET_ID', // Replace with your GitHub Client Secret
+    callbackURL: 'http://localhost:3000/auth/github/callback'
+}, async (accessToken, refreshToken, profile, done) => {
+    console.log('GitHub profile:', profile); // Log profile for debugging
+    
+    try {
+        const database = client.db('edu-learn');
+        const users = database.collection('users');
+        
+        // Safely access profile.emails
+        const email = (profile.emails && profile.emails.length > 0 && profile.emails[0].value) || 'no-email@example.com';
+        
+        let user = await users.findOne({ githubId: profile.id });
+        if (!user) {
+            const result = await users.insertOne({
+                githubId: profile.id,
+                displayName: profile.displayName,
+                email: email
+            });
+            user = result.ops[0]; // Extract the inserted user
+        }
+        return done(null, user);
+    } catch (error) {
+        console.error('Error during GitHub authentication:', error);
+        return done(error, null);
+    }
+}));
+
+// Serve static files from the 'edu web' directory
+app.use(express.static(path.join(__dirname, 'edu web')));
 
 app.post('/login', async (req, res) => {
     const { username, password, role } = req.body;
@@ -112,38 +147,60 @@ app.get('/logout', (req, res) => {
                 console.error('Error destroying session:', err);
                 return res.status(500).json({ success: false, error: 'Failed to log out' });
             }
-            res.redirect('http://127.0.0.1:5500/index.html'); // Redirect to the googlelogout.html page
+            res.redirect('http://127.0.0.1:5500/index.html'); // Redirect to the index.html page
         });
     });
 });
 
 app.get('/resource1', authenticate, (req, res) => {
-    res.sendFile(path.join(__dirname, 'resources', 'resource1.html'));
+    res.sendFile(path.join(__dirname, 'edu web/resources', 'resource1.html'));
 });
 
 app.get('/resource2', authenticate, (req, res) => {
-    res.sendFile(path.join(__dirname, 'resources', 'resource2.html'));
+    res.sendFile(path.join(__dirname, 'edu web/resources', 'resource2.html'));
 });
 
 app.get('/resource3', authenticate, (req, res) => {
-    res.sendFile(path.join(__dirname, 'resources', 'resource3.html'));
+    res.sendFile(path.join(__dirname, 'edu web/resources', 'resource3.html'));
 });
 
 // Google authentication routes
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
-app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: '/login' }), (req, res) => {
+app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: '/login.html' }), (req, res) => {
     res.redirect('/welcome');
 });
 
+// GitHub authentication routes
+app.get('/auth/github', passport.authenticate('github', { scope: ['user:email'] }));
+
+app.get('/auth/github/callback', passport.authenticate('github', { failureRedirect: '/login.html' }), (req, res) => {
+    res.redirect('/welcome');
+});
 
 app.get('/welcome', (req, res) => {
-    if (!req.isAuthenticated()) return res.redirect('/login');
+    if (!req.isAuthenticated()) return res.redirect('/login.html');
+    
+    // Access the user's information
+    const user = req.user;
+    
+    // Determine the authentication provider
+    let authProvider = 'Unknown';
+    if (user.googleId) {
+        authProvider = 'Google';
+    } else if (user.githubId) {
+        authProvider = 'GitHub';
+    }
+
+    // Generate the welcome message
     res.send(`
-        <h1>Welcome ${req.user.displayName}</h1>
+        <h1>Welcome ${user.displayName || 'User'}</h1>
+        <p>You logged in with ${authProvider}.</p>
+        <p>Email: ${user.email || 'No email provided'}</p>
         <a href="/logout">Logout</a>
     `);
 });
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
